@@ -1,0 +1,65 @@
+RF:
+R[0] is 0
+R[1] is A
+R[2] is B
+R[3] stores S[2*i] or S[2*i+1]
+R[4] stores tmp ((A XOR B) <<< B) or ((B XOR A) <<< A) 
+R[5] is left shift counter
+R[6] is the main loop counter: i
+R[7] storing value -- 2*i or 2*i + 1
+R[11] number of bits
+R[12] stores the for main loop
+DataMem:
+Mem[0]to Mem[26] store S[0] to S[26]
+========================================================================
+
+
+	lb $0, $3, 0   //1C030000 //000011100000000110000000000000000   //R[3] = Mem[0-3]                 //R[3] <= S[0] 
+	ADD $0, $0, $0		// 000000 00000 00000 00000 00000 000001										//							//STALL 
+	add $1, $3, $1    //000000000010000110000100000000001 //R[1] = R[1]+R[3]       //A <= A + S[0]
+	lb $0, $4, 4      //100  //R[4] = Mem[4-7]                 //R[4] <= S[1]
+	ADD $0, $0, $0		//										//							//STALL 
+	add $2, $4, $2    //R[2] = R[2]+R[4]                //B <= B + S[1] 
+	addi $0, $11, 31  //R[11] = 31	
+	addi $0, $12, 48  //R[12] =48	//4*i
+	ADDI $0, $6, 0	
+////for i=1 to 12 do///////////////////////////////////////
+A:	ADDI $6, $6, 4    //R[6] = R[6] and 0(*31)1          		// 4*i counter<=1	00000100110001100000000000000100							
+	////////////////////////////////////((A XOR B) <<< B)////////////////////////////////////
+	OR	//R[4] = R[1] or R[2]    00000000001000100010000000000111
+	AND $1, $2, $5    	//R[5] = R[1] and R[2] 
+	SUB $4, $5, $4    	//R[4] = R[4] - R[5]               		//tmp <= A xor B
+	ANDI $2, $5, 31   	//R[5] = R[2] and 0(*27)11111      		// last 5 bits of B
+	BEQ $0, $5, 20     	//if R[5]==0: PC=PC+4+20 											//jumpto C  	
+B:	SHR $4, $13, 31   	//shift right by 31 bits to get MSB.
+	ADD $4, $4, $4    	//add same number to get 0 as a LSB.
+	ADD $4, $13, $4  	//rotated value.
+	SUBI $5, $5, 1    	//R[5] = R[5]-1
+	BNE $0, $5, -20 	//if R[5]!=0: PC=PC+4-20					//LOOPING LEFT ROTATE		//jumpto B
+C:	ADD $6, $6, $7     	//R[7] = R[6]+ R[6]                   	//R[7] <= 4*2*i
+	LB $7, $3, 0      	//R[3] = Mem[R[7]]                 		//R[3] <= S[2*i]
+	ADD $0, $0, $0		//										//							//STALL 
+	ADD $4, $3, $1    	//R[1] = R[4]+R[3]                 		//A<= tmp + S[2*i]			//RESULT EQ A
+	///////////////////////////////////((B XOR A) <<< A)///////////////////////////////////
+	OR $1, $2, $4     	//R[4] = R[1] or R[2]
+	AND $1, $2, $5    	//R[5] = R[1] and R[2]
+	SUB $4, $5, $4    	//R[4] = R[4] - R[5]               		//tmp <= A xor B
+	ANDI $1, $5, 31   	//R[5] = R[1] and 0(*27)11111      		//last 5 bits of A
+	BEQ $0, $5, 20     	//if R[5]==0: PC=PC+4+20  											//jumpto E
+D:	SHR $4, $13, 31   	// shift right by 31 bits to get MSB.
+	ADD $4, $4, $4    	// add same number to get 0 as a LSB.
+	ADD $4, $13, $4  	// rotated value.
+    	SUBI $5, $5, 1    	//R[5] = R[5]-1
+    	BNE $0, $5, -20    	//if R[0]!=R[5]: PC=PC+4-20         //tmp <= tmp<<A					//jumpto D
+E:	ADDI $7, $7, 4    	//R[7] = R[7] + 4                  //R[7] <= 4*(2*i+1)
+	LB $7, $3, 0      	//R[3] = Mem[R[7]]                 //R[3] <= S[2*i+1]
+	ADD $0, $0, $0		//										//							//STALL
+	ADD $4, $3, $2    	//R[2] = R[4]+R[3]                 //B<= tmp + S[2*i+1]				//RESULT EQ B
+	BNE $12, $6, -120  	//if R[6]! = 12: PC=PC+1-30											//jumpto A
+	HALT		
+
+// 	1C 01 	7169 0078
+//7170 007C
+// 0001 1100 0000 0001
+// 0001 1100 0000 0010
+//

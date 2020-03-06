@@ -1,6 +1,6 @@
 # Cycle Accurate MIPS Processor
  
-Here, we will implement a 32-bit processor in VHDL, called NYU-6463 Processor, which can execute programs. The processor should support the instruction set specified in the next section.
+Here, we will implement a 32-bit MIPS processor in VHDL, called NYU-6463 Processor, which can execute programs. The processor should support the instruction set specified in the next section.
 
 ## Design Specification Instructions
 
